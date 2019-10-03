@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Yajra\DataTables\Html\Builder;
+use Illuminate\Support\Facades\Validator;
 use DataTables;
 use App\siswa;
 
@@ -14,17 +15,10 @@ class siswaController extends Controller
             $data = siswa::all();
             return Datatables::of($data)
                     ->addIndexColumn()
-                    ->addColumn('nis', function($data){
-                        return $data->nis;
-                    })
-                    ->addColumn('nama', function($data){
-                        return $data->nama;
-                    })
                     ->addColumn('action', function($data){
                         return "<button class='btn btn-warning' id='edit' data-id='".$data->id."'>Edit</button> <button class='btn btn-danger' id='delete' data-id='".$data->id."'>Delete</button>";
-                           
                     })
-                    ->rawColumns(['nis','nama','action'])
+                    ->rawColumns(['action'])
                     ->toJson();
         }
 
@@ -47,45 +41,56 @@ class siswaController extends Controller
     }
 
     public function save(Request $request){
-        $this->validate($request,[
-    		'nis' => 'required',
-    		'nama' => 'required'
-    	]);
- 
-        siswa::create([
-    		'nis' => $request->nis,
-    		'nama' => $request->nama
+        $validator = Validator::make($request->all(), [
+            'nis' => 'required|numeric|min:4',
+            'nama' => 'required',
         ]);
+ 
+        if($validator->fails()){
+            return response()->json(['message' => $validator->errors()], 422);
+        }else{
+            try{
+                    $save = siswa::create([
+                        'nis' => $request->input('nis'),
+                        'nama' => $request->input('nama')
+                    ]);
+
+                    return response()->json(['message' => 'success'], 200);
+            }catch(\Exception $e){
+                return response()->json(['message' => $e->getMessage()], 500);
+            }
         
-        return response()->json(array('message'=> 1));
-    }
-
-    public function search(Request $request){
-        $siswa = siswa::find($request->id);
-
-        return response()->json(array('siswa'=> $siswa));
+        }
     }
 
     public function edit(Request $request){
-        $this->validate($request,[
-    		'nis' => 'required',
-    		'nama' => 'required'
-    	]);
- 
-        $siswa = siswa::find($request->id);
-        $siswa->nis = $request->nis;
-        $siswa->nama = $request->nama;
-        $siswa->save();
+        $validator = Validator::make($request->all(),[
+                        'nis' => 'required|numeric|min:4',
+                        'nama' => 'required', 
+                    ]);
+        if($validator->fails()) {
+            return response()->json(['message' => $validator->errors()], 422);
+        }else{
+            $siswa = siswa::findOrFail($request->input('id'));
+            $siswa->nis = $request->input('nis');
+            $siswa->nama = $request->input('nama');
 
-        return response()->json(array('message'=> 1));
+            try{
+                $siswa = siswa::findOrFail($request->input('id'));
+                $siswa->nis = $request->input('nis');
+                $siswa->nama = $request->input('nama');
+                $siswa->save();
+
+                return response()->json(['message' => 'success'], 200);
+            }catch(\Exception $e){
+                return response()->json(['message' => $e->getMessage()], 500);
+            }
+        }  
     }
 
     public function delete(Request $request){
-        $siswa = siswa::find($request->id);
-
-        if($siswa !== null){
-          $siswa->delete();  
-        }
-        return response()->json(array('message'=> 1));
+        $siswa = siswa::findOrFail($request->id);
+        $siswa->delete();  
+        return response()->json(['message' => 'success'], 200);
     }
 }

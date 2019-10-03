@@ -27,10 +27,21 @@
     <button class="btn btn-success" id="add">add new student</button>
   </div>
   <br>
-  <div class="col-md-12">
+  <div class="col-md-12" style="padding-top:5px;">
     <div class="alert alert-success alert-dismissible" id="success">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <button type="button" class="close" id="closesuccess" aria-label="Close">&times;</button>
         <strong>Success!</strong> Data berhasil disimpan
+    </div>
+    <div class="alert alert-danger alert-dismissible" id="failed">
+        <button type="button" class="close" id="closefailed" aria-label="Close">&times;</button>
+        <strong>Error!</strong> 
+        <ul id="errors">
+        @if ($errors->any())
+            @foreach ($errors->all() as $error)
+               <li>{{ $error }}</li>
+            @endforeach
+        @endif
+        </ul>
     </div>
   </div>
   <div class="col-md-12">
@@ -50,16 +61,18 @@
       <!-- Modal body -->
       <div class="modal-body">
         <div class="row">
-            <input type="hidden" readonly id="id" name="id">
-            <input type="hidden" readonly id="type" name="type">
-            <div class="col-md-12">
-                <label>NIS</label>
-                <input type="text" name="nis" id="nis" class="form-control" required>
-            </div>
-            <div class="col-md-12">
-                <label>Nama</label>
-                <input type="text" name="nama" id="nama" class="form-control" required>
-            </div>
+            <form>
+                <input type="hidden" readonly id="id" name="id">
+                <input type="hidden" readonly id="type" name="type">
+                <div class="col-md-12">
+                    <label>NIS</label>
+                    <input type="text" name="nis" id="nis" class="form-control" required>
+                </div>
+                <div class="col-md-12">
+                    <label>Nama</label>
+                    <input type="text" name="nama" id="nama" class="form-control" required>
+                </div>
+            </form>
         </div>
       </div>
 
@@ -76,6 +89,7 @@
 <script type="text/javascript">
   $(function () {
     $("#success").hide();
+    $("#failed").hide();
     var table = $("#dataTableBuilder").DataTable();
     $(document).on('click', '#add', function(e){
         $("#id").val("");
@@ -84,37 +98,24 @@
         $("#type").val("add");
         $("#processData").modal("show");
     });
-
+    $( "#closesuccess" ).click(function() {
+        $( "#success" ).hide();
+    });
+    $( "#closefailed" ).click(function() {
+        $("#failed").hide();
+    });
     $(document).on('click', '#edit', function(e){
-        var id = $(this).data('id');
-        $.ajax({
-            headers: {
-                    'X-CSRF-Token': "{{ csrf_token() }}"
-            },
-            url : "{{ route('search') }}",
-            type : "POST",
-            dataType : "JSON",
-            data : {
-                'id' : id
-            }, success : function(data){
-                console.log(data);
-                $("#id").val(data.siswa.id);
-                $("#nis").val(data.siswa.nis);
-                $("#nama").val(data.siswa.nama);
-                $("#type").val("update");
-                $("#processData").modal("show");
-            }, error : function(thrownError){
-                console.log(thrownError);
-            }
-        });
+        var datarow = table.row( $(this).parents('tr') ).data();
+        $("#id").val($(this).data('id'));
+        $("#nis").val(datarow.nis);
+        $("#nama").val(datarow.nama);
+        $("#type").val("update");
+        $("#processData").modal("show");
     });
 
     $(document).on('click', '#save', function(){
-        var id = $("#id").val();
-        var nis = $("#nis").val();
-        var nama = $("#nama").val();
+        var form_data = $('form').serialize();
         if($("#type").val() == "add"){
-           if(nis !== "" && nama !== ""){
             $.ajax({
                 headers: {
                     'X-CSRF-Token': "{{ csrf_token() }}"
@@ -122,20 +123,25 @@
                 url : "{{ route('save')}}",
                 type : "POST",
                 dataType : "JSON",
-                data: {
-                    'nama' : nama,
-                    'nis' : nis
-                }, success :  function(data){
-                    $("#processData").modal("hide");
-                    $("#success").show();
-                    table.ajax.reload();
-                }, error : function(thrownError){
-                    console.log(thrownError);
+                data: form_data, 
+                success :  function(data){
+                        $("#processData").modal("hide");
+                        $("#success").show();
+                        table.ajax.reload();
+                }, error : function(data){   
+                    if(data.status !== 200){
+                        var errors = JSON.parse(data.responseText);
+                        var errorsHtml = '';
+                        $.each(errors.message, function( key, value ) {
+                            errorsHtml += '<li>' + value[0] + '</li>';
+                        });
+                        $('#errors').html(errorsHtml);
+                        $("#failed").show();
+                        $("#processData").modal("hide");
+                    }
                 }
             });
-           } 
         }else{
-            if(id !== "" && nis !== "" && nama !== ""){
             $.ajax({
                 headers: {
                     'X-CSRF-Token': "{{ csrf_token() }}"
@@ -143,19 +149,24 @@
                 url : "{{ route('update')}}",
                 type : "POST",
                 dataType : "JSON",
-                data: {
-                    'id' : id,
-                    'nama' : nama,
-                    'nis' : nis
-                }, success :  function(data){
+                data: form_data, 
+                success :  function(data){
                     $("#processData").modal("hide");
                     $("#success").show();
                     table.ajax.reload();
-                }, error : function(thrownError){
-                    console.log(thrownError);
+                }, error : function(data){
+                    if(data.status !== 200){
+                        var errors = JSON.parse(data.responseText);
+                        var errorsHtml = '';
+                        $.each(errors.message, function( key, value ) {
+                            errorsHtml += '<li>' + value[0] + '</li>';
+                        });
+                        $('#errors').html(errorsHtml);
+                        $("#failed").show();
+                        $("#processData").modal("hide");
+                    }
                 }
             });
-           } 
         }
         
     });

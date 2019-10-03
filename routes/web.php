@@ -12,7 +12,6 @@
 */
 
 Route::get('/', 'siswaController@index')->name('index');
-Route::post('/search', 'siswaController@search')->name('search');
 Route::post('/save', 'siswaController@save')->name('save');
 Route::post('/edit', 'siswaController@edit')->name('update');
 Route::post('/delete', 'siswaController@delete')->name('delete');
